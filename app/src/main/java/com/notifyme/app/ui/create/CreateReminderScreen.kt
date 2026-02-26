@@ -29,6 +29,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -44,10 +45,18 @@ import java.util.Locale
 @Composable
 fun CreateReminderScreen(
     onNavigateBack: () -> Unit,
+    reminderId: Long? = null,
     viewModel: CreateReminderViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val isEditing = state.editingId != null
+
+    LaunchedEffect(reminderId) {
+        if (reminderId != null) {
+            viewModel.loadReminder(reminderId)
+        }
+    }
 
     val dateFormat = SimpleDateFormat("EEE, MMM dd, yyyy", Locale.getDefault())
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -63,7 +72,7 @@ fun CreateReminderScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Create Reminder") },
+                title = { Text(if (isEditing) "Edit Reminder" else "Create Reminder") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -206,7 +215,7 @@ fun CreateReminderScreen(
                 enabled = state.isValid && !state.isSaving,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (state.isSaving) "Saving..." else "Create Reminder")
+                Text(if (state.isSaving) "Saving..." else if (isEditing) "Update Reminder" else "Create Reminder")
             }
 
             Spacer(Modifier.height(16.dp))

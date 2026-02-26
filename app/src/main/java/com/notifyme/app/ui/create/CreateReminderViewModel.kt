@@ -23,7 +23,10 @@ data class CreateReminderState(
     val recurringType: String = "DAILY",
     val customIntervalMinutes: Long = 60,
     val isSaving: Boolean = false,
-    val isValid: Boolean = false
+    val isValid: Boolean = false,
+    val editingId: Long? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val isEnabled: Boolean = true
 )
 
 class CreateReminderViewModel(application: Application) : AndroidViewModel(application) {
@@ -62,6 +65,29 @@ class CreateReminderViewModel(application: Application) : AndroidViewModel(appli
         _state.value = _state.value.copy(customIntervalMinutes = minutes)
     }
 
+    fun loadReminder(id: Long) {
+        viewModelScope.launch {
+            val reminder = repository.getReminderById(id) ?: return@launch
+            val cal = Calendar.getInstance().apply { timeInMillis = reminder.triggerAtMillis }
+            _state.value = CreateReminderState(
+                title = reminder.title,
+                message = reminder.message,
+                year = cal.get(Calendar.YEAR),
+                month = cal.get(Calendar.MONTH),
+                day = cal.get(Calendar.DAY_OF_MONTH),
+                hour = cal.get(Calendar.HOUR_OF_DAY),
+                minute = cal.get(Calendar.MINUTE),
+                isRecurring = reminder.isRecurring,
+                recurringType = reminder.recurringType ?: "DAILY",
+                customIntervalMinutes = reminder.recurringIntervalMinutes ?: 60,
+                isValid = reminder.title.isNotBlank(),
+                editingId = reminder.id,
+                createdAt = reminder.createdAt,
+                isEnabled = reminder.isEnabled
+            )
+        }
+    }
+
     fun save(onComplete: () -> Unit) {
         val s = _state.value
         if (s.title.isBlank()) return
@@ -79,18 +105,29 @@ class CreateReminderViewModel(application: Application) : AndroidViewModel(appli
         }
 
         val reminder = ReminderEntity(
+            id = s.editingId ?: 0,
             title = s.title.trim(),
             message = s.message.trim(),
             triggerAtMillis = calendar.timeInMillis,
             isRecurring = s.isRecurring,
             recurringType = if (s.isRecurring) s.recurringType else null,
-            recurringIntervalMinutes = if (s.isRecurring && s.recurringType == "CUSTOM") s.customIntervalMinutes else null
+            recurringIntervalMinutes = if (s.isRecurring && s.recurringType == "CUSTOM") s.customIntervalMinutes else null,
+            isEnabled = s.isEnabled,
+            createdAt = s.createdAt
         )
 
         viewModelScope.launch {
-            val id = repository.insert(reminder)
-            val saved = reminder.copy(id = id)
-            AlarmScheduler.schedule(getApplication(), saved)
+            if (s.editingId != null) {
+                AlarmScheduler.cancel(getApplication(), reminder)
+                repository.update(reminder)
+                if (reminder.isEnabled) {
+                    AlarmScheduler.schedule(getApplication(), reminder)
+                }
+            } else {
+                val id = repository.insert(reminder)
+                val saved = reminder.copy(id = id)
+                AlarmScheduler.schedule(getApplication(), saved)
+            }
             onComplete()
         }
     }

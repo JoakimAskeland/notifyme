@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -44,6 +45,7 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     onCreateReminder: () -> Unit,
+    onEditReminder: (Long) -> Unit,
     viewModel: HomeViewModel = viewModel()
 ) {
     val reminders by viewModel.reminders.collectAsState()
@@ -103,6 +105,7 @@ fun HomeScreen(
                     ReminderCard(
                         reminder = reminder,
                         onToggle = { viewModel.toggleReminder(reminder) },
+                        onEdit = { onEditReminder(reminder.id) },
                         onDelete = { viewModel.deleteReminder(reminder) }
                     )
                 }
@@ -116,6 +119,7 @@ fun HomeScreen(
 private fun ReminderCard(
     reminder: ReminderEntity,
     onToggle: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     val dateFormat = SimpleDateFormat("MMM dd, yyyy  HH:mm", Locale.getDefault())
@@ -167,6 +171,12 @@ private fun ReminderCard(
                 checked = reminder.isEnabled,
                 onCheckedChange = { onToggle() }
             )
+            IconButton(onClick = onEdit) {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = "Edit"
+                )
+            }
             IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Default.Delete,
